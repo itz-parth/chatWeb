@@ -1,33 +1,16 @@
+//importing modules
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
-const WebSocket = require('ws');
+const { setupWebSocket } = require('./socket');
 
+//creating app
 const app = express();
-app.use(cors());
+app.use(cors()); 
 
+//creating server
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
-
-wss.on('connection', (ws) => {
-  console.log("New client connected");
-
-  // Listen to messages from THIS client
-  ws.on('message', (message) => {
-    console.log("Received message:", message.toString());
-
-    // Broadcast to all connected clients
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message.toString());
-      }
-    });
-  });
-
-  ws.on('close', () => {
-    console.log("Client disconnected");
-  });
-});
+setupWebSocket(server)
 
 const PORT = 5000;
 server.listen(PORT, () => {
