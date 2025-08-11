@@ -1,5 +1,6 @@
 import React from 'react'
 import ChatBox from './ChatBox.jsx'
+import LogoutButton from './buttons/LogoutButton.jsx'
 
 const HomePage = () => {
   return (
@@ -12,6 +13,7 @@ const HomePage = () => {
       </div>
       <div className='w-1/6 h-full mr-4'>
         <h1>Profile</h1>
+        <LogoutButton/>
       </div>
     </div>
   )
