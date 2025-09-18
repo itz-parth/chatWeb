@@ -1,9 +1,7 @@
 import React, { useState } from "react";
 import { getAuth } from "firebase/auth";
-import { addDoc, collection, getFirestore, serverTimestamp } from "firebase/firestore";
 
 const SendMessage = ({ socket }) => {
-  const db = getFirestore();
   const auth = getAuth();
   const [input, setInput] = useState("");
 
@@ -12,18 +10,12 @@ const SendMessage = ({ socket }) => {
     if (!auth.currentUser) return alert("You must log in first!");
 
     if (socket?.readyState === WebSocket.OPEN) {
-      socket.send(input);
-    }
-
-    try {
-      await addDoc(collection(db, "messages"), {
+      socket.send(JSON.stringify({
         text: input,
         uid: auth.currentUser.uid,
         displayName: auth.currentUser.displayName,
-        timestamp: serverTimestamp(),
-      });
-    } catch (e) {
-      console.log("Error in sending message: " + e);
+        timestamp: new Date().toISOString()
+      }));
     }
 
     setInput(""); 
