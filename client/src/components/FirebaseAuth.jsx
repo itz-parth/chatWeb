@@ -1,13 +1,7 @@
-// ============================================================================
-// Firebase Configuration and Initialization
-// Sets up Firebase services: Authentication and Firestore
-// ============================================================================
-
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Firebase configuration object with project credentials
 const firebaseConfig = {
   apiKey: 'AIzaSyANCTr9cr432gffdWZdQJ5-bjHHhxZ95hU',
   authDomain: 'chatapp-d6b3a.firebaseapp.com',
@@ -18,13 +12,7 @@ const firebaseConfig = {
   measurementId: 'G-9XKPWDTYJJ',
 };
 
-// Initialize Firebase app with configuration
 const app = initializeApp(firebaseConfig);
-
-// Export auth instance for use in authentication operations
 export const auth = getAuth(app);
-
-// Initialize Firestore database for data storage
-const db = getFirestore(app);
-
+export const db = getFirestore(app);
 export default app;

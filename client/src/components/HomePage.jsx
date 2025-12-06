@@ -6,6 +6,8 @@
 import React from 'react';
 import ChatBox from './ChatBox.jsx';
 import LogoutButton from './buttons/LogoutButton.jsx';
+import Sidebar from './Sidebar.jsx';
+import Profile from './Profile.jsx';
 
 /**
  * HomePage Component
@@ -17,7 +19,7 @@ const HomePage = () => {
     <div className="flex pt-8 pl-12 pb-4 h-screen">
       {/* Left Panel: Users List (20% width) */}
       <div className="w-1/5 h-full">
-        <h1>Users</h1>
+        <Sidebar />
         {/* TODO: Add active users list here */}
       </div>
 
@@ -28,8 +30,7 @@ const HomePage = () => {
 
       {/* Right Panel: User Profile (17% width) */}
       <div className="w-1/6 h-full mr-4">
-        <h1>Profile</h1>
-        <LogoutButton />
+        <Profile />
       </div>
     </div>
   );

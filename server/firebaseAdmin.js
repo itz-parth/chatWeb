@@ -33,8 +33,9 @@ let dbExport = null;
 
 // Check if Firebase Admin App was initialized
 if (admin.apps && admin.apps.length > 0) {
-  // Get Firestore database instance
+  // Get Firestore database instance with ignoreUndefinedProperties
   dbExport = admin.firestore();
+  admin.firestore().settings({ ignoreUndefinedProperties: true });
 } else {
   // Log error if initialization failed
   console.error('✗ Firestore not initialized – database export is null');

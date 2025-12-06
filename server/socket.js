@@ -4,7 +4,18 @@
 // ============================================================================
 
 const WebSocket = require('ws');
+// Firestore admin import is optional – the server can run in a local in-memory mode
+// when the environment variable USE_FIRESTORE is set to 'false'. This makes the
+// project easier to run for beginners who don't have Firebase configured.
 const { db, admin } = require('./firebaseAdmin');
+// By default use in-memory mode (easier for beginners). Set USE_FIRESTORE=true
+// in the server environment to enable Firestore persistence.
+const USE_FIRESTORE = String(process.env.USE_FIRESTORE || 'false').toLowerCase() === 'true';
+
+// In-memory storage used when Firestore is disabled (local demo mode)
+const localState = {
+  messages: [], // recent messages
+};
 
 /**
  * setupWebSocket Function
@@ -20,98 +31,91 @@ function setupWebSocket(server) {
   // Handle new client connections
   // ============================================================================
   wss.on('connection', async (ws) => {
-    console.log('✓ New client connected');
 
     // --- SECTION 1: Send Chat History ---
     // Fetch and send recent message history to newly connected client
     try {
-      // Query Firestore for the 50 most recent messages
-      const snapshot = await db
-        .collection('messages')
-        .orderBy('timestamp', 'desc') // Newest first
-        .limit(50)
-        .get();
+      if (USE_FIRESTORE && db) {
+        // Fetch recent messages from Firestore (if available)
+        const snapshot = await db
+          .collection('messages')
+          .orderBy('timestamp', 'desc')
+          .limit(50)
+          .get();
 
-      // Transform Firestore documents into message objects
-      const history = snapshot.docs
-        .map((doc) => {
-          const d = doc.data();
-          return {
-            id: doc.id,
-            ...d,
-            // Convert Firestore timestamp to ISO string
-            timestamp: d.timestamp?.toDate().toISOString() || null,
-          };
-        })
-        // Reverse to show oldest→newest order for client
-        .reverse();
-
-      // Send history if messages exist
-      if (history.length > 0) {
-        ws.send(
-          JSON.stringify({
-            type: 'history',
-            messages: history,
+        const history = snapshot.docs
+          .map((doc) => {
+            const d = doc.data();
+            return {
+              id: doc.id,
+              ...d,
+              timestamp: d.timestamp?.toDate().toISOString() || null,
+            };
           })
-        );
+          .reverse();
+
+        ws.send(JSON.stringify({ type: 'history', messages: history }));
+      } else {
+        // Firestore disabled – send in-memory message history
+        ws.send(JSON.stringify({ type: 'history', messages: localState.messages }));
       }
     } catch (err) {
-      console.error('✗ Error fetching message history:', err);
+      console.error('Error fetching message history', err);
+      ws.send(JSON.stringify({ type: 'history', messages: [] }));
     }
 
     // --- SECTION 2: Handle Incoming Messages ---
     // Receive messages from client, store in Firestore, and broadcast to all clients
     ws.on('message', async (message) => {
       try {
-        // Parse JSON message from client
-        const msgData = JSON.parse(message.toString());
-        console.log('📨 Message received:', msgData);
+        const payload = JSON.parse(message.toString());
+        const msgData = payload.data || payload;
 
-        // Save message to Firestore database
-        const docRef = await db.collection('messages').add({
-          displayName: msgData.displayName,
-          uid: msgData.uid,
-          text: msgData.text,
-          // Use server timestamp for consistency
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        // Validate required fields
+        if (!msgData.text || !msgData.text.trim()) return;
 
-        // Prepare message data for broadcasting to all clients
+        // Prepare message payload for broadcasting
         const broadcastMessage = {
-          id: docRef.id,
-          displayName: msgData.displayName,
-          uid: msgData.uid,
-          text: msgData.text,
+          id: `local-${Date.now()}`,
+          displayName: msgData.displayName || 'Anonymous',
+          uid: msgData.uid || 'unknown',
+          text: msgData.text.trim(),
           timestamp: new Date().toISOString(),
         };
 
-        // Broadcast message to all connected WebSocket clients
-        wss.clients.forEach((client) => {
-          // Only send to clients with open connections
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({
-                type: 'message', // Client expects 'message' type for new messages
-                data: broadcastMessage,
-              })
-            );
+        console.log('Message received:', broadcastMessage);
+
+        if (USE_FIRESTORE && db) {
+          // Save to Firestore (server timestamp used for reliable ordering)
+          try {
+            const docRef = await db.collection('messages').add({
+              displayName: broadcastMessage.displayName,
+              uid: broadcastMessage.uid,
+              text: broadcastMessage.text,
+              timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            broadcastMessage.id = docRef.id;
+          } catch (e) {
+            console.warn('Failed to write message to Firestore, falling back to in-memory store', e);
+            localState.messages.push(broadcastMessage);
           }
+        } else {
+          // In-memory demo mode
+          localState.messages.push(broadcastMessage);
+          console.log('Message stored in memory. Total:', localState.messages.length);
+        }
+
+        // Broadcast to all connected clients
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'message', data: broadcastMessage }));
         });
       } catch (err) {
-        console.error('✗ Error processing message:', err);
+        console.error('Error processing message', err);
       }
     });
 
-    // --- SECTION 3: Handle Client Disconnect ---
-    // Log when client disconnects (cleanup handled automatically by ws)
-    ws.on('close', () => {
-      console.log('✗ Client disconnected');
-    });
-
-    // --- SECTION 4: Handle Connection Errors ---
-    ws.on('error', (error) => {
-      console.error('✗ WebSocket error:', error);
-    });
+    ws.on('close', () => {});
+    ws.on('error', (error) => { console.error('WebSocket error', error); });
   });
 }
 

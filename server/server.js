@@ -29,6 +29,5 @@ const PORT = 5000;
 
 // Start server and listen on specified port
 server.listen(PORT, () => {
-  console.log(`✓ Server is running on port ${PORT}`);
-  console.log(`✓ WebSocket server ready at ws://localhost:${PORT}`);
+  console.log(`Server listening on http://localhost:${PORT}`);
 });
