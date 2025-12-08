@@ -1,79 +1,131 @@
 import { useState, useEffect } from "react";
-import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import {
+  getFirestore,
+  doc,
+  onSnapshot,
+  setDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  getDoc
+} from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 export function useProfile() {
-  const [username, setUsername] = useState("");
-  const [discriminator, setDiscriminator] = useState("0000");
+  const [profile, setProfile] = useState({
+    username: "",
+    discriminator: "0000",
+    friends: [],
+    incomingRequests: [],
+    outgoingRequests: [],
+    friendsList: [],
+    incomingRequestsList: [],
+    outgoingRequestsList: []
+  });
+
   const [loading, setLoading] = useState(true);
 
   const db = getFirestore();
   const auth = getAuth();
 
+  // Fetch user details for list of UIDs
+  const fetchUserDetails = async (uids = []) => {
+    if (!uids.length) return [];
+
+    const results = await Promise.all(
+      uids.map(async (uid) => {
+        const snap = await getDoc(doc(db, "users", uid));
+        if (!snap.exists()) return { uid, username: "Unknown", discriminator: "0000" };
+
+        const data = snap.data();
+        return {
+          uid,
+          username: data.username,
+          discriminator: data.discriminator
+        };
+      })
+    );
+
+    return results;
+  };
+
   useEffect(() => {
-    const loadUserProfile = async () => {
-      const user = auth.currentUser;
+    const user = auth.currentUser;
+    if (!user) {
+      setProfile({
+        username: "Guest",
+        discriminator: "0000",
+        friends: [],
+        incomingRequests: [],
+        outgoingRequests: [],
+        friendsList: [],
+        incomingRequestsList: [],
+        outgoingRequestsList: []
+      });
+      setLoading(false);
+      return;
+    }
 
-      if (!user) {
-        setUsername("Guest");
-        setDiscriminator("0000");
-        setLoading(false);
+    const ref = doc(db, "users", user.uid);
+
+    const unsub = onSnapshot(ref, async (snap) => {
+      if (!snap.exists()) {
+        const newDisc = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+        await setDoc(ref, {
+          username: user.displayName || "User",
+          discriminator: newDisc,
+          friends: [],
+          incomingRequests: [],
+          outgoingRequests: []
+        });
         return;
       }
 
-      const userDocRef = doc(db, "users", user.uid);
-      const userDocSnap = await getDoc(userDocRef);
+      const data = snap.data();
 
-      if (userDocSnap.exists()) {
-        const profileData = userDocSnap.data();
-        setUsername(profileData.username);
-        setDiscriminator(profileData.discriminator);
-        setLoading(false);
-        return;
-      }
+      // Fetch full lists in parallel
+      const [friendsList, incomingList, outgoingList] = await Promise.all([
+        fetchUserDetails(data.friends || []),
+        fetchUserDetails(data.incomingRequests || []),
+        fetchUserDetails(data.outgoingRequests || [])
+      ]);
 
-      const newDisc = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
-
-      await setDoc(userDocRef, {
-        username: user.displayName || "User",
-        discriminator: newDisc,
+      setProfile({
+        username: data.username,
+        discriminator: data.discriminator,
+        friends: data.friends || [],
+        incomingRequests: data.incomingRequests || [],
+        outgoingRequests: data.outgoingRequests || [],
+        friendsList,
+        incomingRequestsList: incomingList,
+        outgoingRequestsList: outgoingList
       });
 
-      setUsername(user.displayName || "User");
-      setDiscriminator(newDisc);
       setLoading(false);
-    };
+    });
 
-    loadUserProfile();
+    return () => unsub();
   }, []);
 
-  const checkTagExists = async (user, checkUsername, checkDisc) => {
+  // Tag exists check
+  const checkTagExists = async (user, username, disc) => {
     try {
-      const usersRef = collection(db, "users");
       const q = query(
-        usersRef,
-        where("username", "==", checkUsername)
+        collection(db, "users"),
+        where("username", "==", username)
       );
-      const snapshot = await getDocs(q);
-      
-      for (const docSnap of snapshot.docs) {
-        if (docSnap.data().discriminator === checkDisc && docSnap.id !== user.uid) {
-          return true;
-        }
-      }
-      return false;
-    } catch (error) {
-      console.error("Error checking tag:", error);
+
+      const snap = await getDocs(q);
+
+      return snap.docs.some(
+        (d) => d.data().discriminator === disc && d.id !== user.uid
+      );
+    } catch (err) {
+      console.error("Error checking tag:", err);
       return false;
     }
   };
 
-  return { 
-    username, 
-    discriminator, 
-    loading, 
-    setUsername, 
-    setDiscriminator,
-    checkTagExists
-  };
+  return { ...profile, loading, checkTagExists };
 }

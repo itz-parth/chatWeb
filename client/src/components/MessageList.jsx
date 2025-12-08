@@ -1,7 +1,5 @@
 import React from 'react';
 
-// Simple MessageList component: receives `messages` array and renders them.
-// Keeps markup minimal so beginners can read and change it easily.
 const MessageList = ({ messages = [] }) => {
   return (
     <div className="flex-1 overflow-y-auto bg-gray-100 p-3 rounded-lg shadow-inner">
