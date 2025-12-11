@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { getAuth, updateProfile } from "firebase/auth";
 import { getFirestore, doc, setDoc } from "firebase/firestore";
-import { useProfile } from "../../hooks/useProfile";
+import { useFriends } from "../../context/FriendsContext";
 
 const Profile = () => {
     const auth = getAuth();
     const db = getFirestore();
 
-    const { username, discriminator, setUsername, setDiscriminator, checkTagExists } = useProfile();
+    const { username, discriminator, checkTagExists } = useFriends();
 
     const [isEditing, setIsEditing] = useState(false);
     const [inputName, setInputName] = useState(username);
@@ -24,7 +24,7 @@ const Profile = () => {
 
         try {
             if (user) {
-                const tagExists = await checkTagExists(user, newUsername, discriminator);
+                const tagExists = await checkTagExists(newUsername, discriminator);
 
                 if (tagExists) {
                     const confirmed = window.confirm(
@@ -37,7 +37,6 @@ const Profile = () => {
                     }
 
                     finalDisc = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
-                    setDiscriminator(finalDisc);
                 }
 
                 const userDocRef = doc(db, "users", user.uid);
@@ -56,7 +55,7 @@ const Profile = () => {
                 });
             }
 
-            setUsername(newUsername);
+            // setUsername(newUsername); // Handled by context listener
 
             window.dispatchEvent(
                 new CustomEvent("profile-updated", {

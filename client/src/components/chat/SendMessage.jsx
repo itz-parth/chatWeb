@@ -1,43 +1,24 @@
 import React, { useState } from "react";
-import { getAuth } from "firebase/auth";
-import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { useChat } from "../../context/ChatContext";
 
-const SendMessage = ({ socket, username }) => {
+const SendMessage = () => {
     const [input, setInput] = useState("");
-    const auth = getAuth();
-    const db = getFirestore();
+    const { sendMessage } = useChat();
 
-    const handleInput = (e) => {
-        setInput(e.target.value);
+    const handleSend = async () => {
+        if (!input.trim()) return;
 
-        // Optional: Send typing signal via WebSocket
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({
-                type: 'signal',
-                data: { type: 'typing', user: username }
-            }));
+        try {
+            await sendMessage(input);
+            setInput("");
+        } catch (error) {
+            alert("Failed to send message");
         }
     };
 
-    const sendMessage = async () => {
-        if (!input.trim()) return;
-        if (!auth.currentUser) return alert("Please log in first");
-
-        // 1. Send to Firestore (Storage)
-        const messageData = {
-            text: input.trim(),
-            displayName: username,
-            uid: auth.currentUser.uid,
-            timestamp: serverTimestamp(),
-        };
-
-        try {
-            await addDoc(collection(db, "messages"), messageData);
-            setInput("");
-        } catch (error) {
-            console.error("Error sending message:", error);
-            alert("Failed to send message");
-        }
+    const handleInput = (e) => {
+        setInput(e.target.value);
+        // Typing indicators can be reimplemented here via context if exposed
     };
 
     return (
@@ -48,11 +29,11 @@ const SendMessage = ({ socket, username }) => {
                 placeholder="Type your message..."
                 value={input}
                 onChange={handleInput}
-                onKeyUp={(e) => e.key === "Enter" && sendMessage()}
+                onKeyUp={(e) => e.key === "Enter" && handleSend()}
             />
 
             <button
-                onClick={sendMessage}
+                onClick={handleSend}
                 className="p-2 border rounded bg-blue-500 text-white"
             >
                 Send

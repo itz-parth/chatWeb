@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { useProfile } from '../../hooks/useProfile';
+import { useFriends } from '../../context/FriendsContext';
 import FriendAction from '../friends/FriendAction';
 import FriendList from '../friends/FriendList';
 
 const Sidebar = () => {
-    // using friendsList, incomingRequestsList, and outgoingRequestsList now which contain full user data
-    const { friendsList, incomingRequestsList, outgoingRequestsList, loading, username, discriminator } = useProfile();
+    const { loading, username, discriminator } = useFriends();
 
     if (loading) {
         return (
@@ -35,11 +34,7 @@ const Sidebar = () => {
 
             {/* Scrollable List Area */}
             <div className="flex-1 overflow-y-auto px-4 custom-scrollbar">
-                <FriendList
-                    friends={friendsList} // Pass full user objects
-                    incomingRequests={incomingRequestsList} // Pass full user objects
-                    outgoingRequests={outgoingRequestsList}
-                />
+                <FriendList />
             </div>
 
             {/* Footer / Status (Optional) */}
@@ -57,3 +52,4 @@ const Sidebar = () => {
 }
 
 export default Sidebar;
+

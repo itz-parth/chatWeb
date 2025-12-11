@@ -84,12 +84,21 @@ export function useProfile() {
 
       const data = snap.data();
 
+      // Helper to generate chat ID
+      const getChatId = (uid1, uid2) => [uid1, uid2].sort().join("_");
+
       // Fetch full lists in parallel
-      const [friendsList, incomingList, outgoingList] = await Promise.all([
+      const [friendsData, incomingList, outgoingList] = await Promise.all([
         fetchUserDetails(data.friends || []),
         fetchUserDetails(data.incomingRequests || []),
         fetchUserDetails(data.outgoingRequests || [])
       ]);
+
+      // Add chatroomId to friends
+      const friendsList = friendsData.map(f => ({
+        ...f,
+        chatroomId: getChatId(user.uid, f.uid)
+      }));
 
       setProfile({
         username: data.username,

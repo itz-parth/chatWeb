@@ -8,7 +8,7 @@ const MessageList = ({ messages = [] }) => {
             ) : (
                 messages.map((msg, i) => (
                     <div key={msg.id || i} className="mb-2">
-                        <span className="font-bold">{msg.displayName || 'Anonymous'}:</span>{' '}
+                        <span className="font-bold">{msg.displayName?.split('#')[0] || 'Anonymous'}:</span>{' '}
                         <span>{msg.text}</span>
                     </div>
                 ))
